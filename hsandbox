@@ -104,6 +104,8 @@ class Hacking(object):
         # generating a MODIFY event and attempting to run it.
         with open(self.filename + ".tmp", "w") as file:
             file.write(sandbox_content)
+        with open(self.filename.replace(".","_") + "_input", "w") as file:
+            file.write("Hello, this is input\n")
         os.rename(self.filename + ".tmp", self.filename)
         return cursor_line
 
@@ -146,7 +148,7 @@ class GoHacking(Hacking):
             return 'echo "Error: hsandbox can\'t Go on architecture %s"' % arch
         return ("%s%dg -o sandbox.l sandbox.go && "
                 "%s%dl -o sandbox sandbox.l && "
-                "./sandbox") % (self._prefix, number, self._prefix, number)
+                "cat sandbox_go_input | ./sandbox") % (self._prefix, number, self._prefix, number)
 
 
 class ErlangHacking(Hacking):
@@ -180,7 +182,7 @@ class CHacking(Hacking):
         else:
             standard = "-ansi"
         return ("gcc %s -Wall -pedantic %s -o sandbox"
-                " $HSANDBOX_CFLAGS && ./sandbox") % (standard, self.filename)
+                " $HSANDBOX_CFLAGS && cat sandbox_c_input | ./sandbox") % (standard, self.filename)
 
 
 class CCHacking(Hacking):
@@ -202,7 +204,7 @@ class CCHacking(Hacking):
         else:
             standard = "-ansi"
         return ("g++ %s -Wall -pedantic sandbox.cc -o sandbox"
-                " $HSANDBOX_CXXFLAGS && ./sandbox") % standard
+                " $HSANDBOX_CXXFLAGS && cat sandbox_cc_input | ./sandbox") % standard
 
 
 class ObjCHacking(CHacking):
@@ -228,40 +230,40 @@ class JavaHacking(Hacking):
                 "\t}\n\n"
                 "}\n")
 
-    command = "javac Sandbox.java && java Sandbox"
+    command = "javac Sandbox.java && cat Sandbox_java_input | java Sandbox"
 
 
 class HaskellHacking(Hacking):
     label = "Haskell (ghc)"
     filename = "sandbox.hs"
     template = "\nmain =\n\t<cursor>\n"
-    command = "runhaskell sandbox.hs"
+    command = "cat sandbox_hs_input | runhaskell sandbox.hs"
 
 class PHPHacking(Hacking):
     filename = "sandbox.php"
     template = "<?php\n<cursor>\n?>\n"
-    command = "php<version> -f sandbox.php"
+    command = "cat sandbox_php_input | php<version> -f sandbox.php"
 
 class PythonHacking(Hacking):
     filename = "sandbox.py"
-    command = "python<version> sandbox.py"
+    command = "cat sandbox_py_input | python<version> sandbox.py"
 
 class NodeHacking(Hacking):
     label = "Javascript (Node)"
     filename = "sandbox.js"
-    command = "node<version> sandbox.js"
+    command = "cat sandbox_js_input | node<version> sandbox.js"
 
 class RubyHacking(Hacking):
     filename = "sandbox.rb"
-    command = "ruby<version> sandbox.rb"
+    command = "cat sandbox_rb_input | ruby<version> sandbox.rb"
 
 class LuaHacking(Hacking):
     filename = "sandbox.lua"
-    command = "lua<version> sandbox.lua"
+    command = "cat sandbox_lua_input | lua<version> sandbox.lua"
 
 class PerlHacking(Hacking):
     filename = "sandbox.pl"
-    command = "perl<version> sandbox.pl"
+    command = "cat sandbox_pl_input | perl<version> sandbox.pl"
     template = ("use strict;\n"
                 "use warnings;\n\n\n"
                 "<cursor>")
@@ -269,7 +271,7 @@ class PerlHacking(Hacking):
 class MonoHacking(Hacking):
     label = "C# (mono)"
     filename = "sandbox.cs"
-    command = "gmcs sandbox.cs -out:sandbox.exe && ./sandbox.exe"
+    command = "gmcs sandbox.cs -out:sandbox.exe && cat sandbox_cs_input | ./sandbox.exe"
     template = ("using System;\n\n"
                 "public class Sandbox\n{\n"
                 "\tpublic static void Main()\n"
@@ -279,7 +281,7 @@ class MonoHacking(Hacking):
 class PascalHacking(Hacking):
     label = "Pascal (gpc)"
     filename = "sandbox.pas"
-    command = "gpc sandbox.pas -o sandbox && ./sandbox"
+    command = "gpc sandbox.pas -o sandbox && cat sandbox_pas_input | ./sandbox"
     template = ("program Sandbox;\n\n"
                 "begin\n"
                 "\t<cursor>\n"
@@ -288,11 +290,11 @@ class PascalHacking(Hacking):
 class ShellHacking(Hacking):
     label = "Shell (sh)"
     filename = "sandbox.sh"
-    command = "sh sandbox.sh"
+    command = "cat sandbox_sh_input | sh sandbox.sh"
 
 class ClojureHacking(Hacking):
     filename = "sandbox.clj"
-    command = "clojure<version> -i sandbox.clj"
+    command = "cat sandbox_clj_input | clojure<version> -i sandbox.clj"
 
 class LispHacking(Hacking):
     label = "Common Lisp (sbcl)"
@@ -312,7 +314,7 @@ class LispHacking(Hacking):
                 pass
             else:
                 ex = realisation
-        return ("%s sandbox.lisp") % ex
+        return ("cat sandbox_lisp_input | %s sandbox.lisp") % ex
 
     def support_version(self):
         return True
@@ -414,7 +416,7 @@ def editor(hacking):
         if cmd_args:
             cmd += " " + cmd_args
     open(".hsandbox-editor-running", "w").close()
-    os.system("%s %s" % (cmd, hacking.filename))
+    os.system("%s %s %s" % (cmd, hacking.filename.replace(".","_")+"_input", hacking.filename))
     shutil.copy(hacking.filename, os.path.join(HSANDBOX_DIR, hacking.filename))
     os.unlink(".hsandbox-editor-running")
 
