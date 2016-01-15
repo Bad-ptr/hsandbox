@@ -107,11 +107,14 @@ class Hacking(object):
         os.rename(self.filename + ".tmp", self.filename)
         return cursor_line
 
-    def get_command(self, version):
+    def get_command(self, version, realisation):
         return self.command.replace("<version>", version)
 
     def support_version(self):
-        return self.get_command("V") != self.get_command("")
+        return self.get_command("V", "") != self.get_command("", "")
+
+    def support_realisation(self):
+        return self.get_command("V", "R") != self.get_command("", "")
 
 
 class GoHacking(Hacking):
@@ -131,7 +134,7 @@ class GoHacking(Hacking):
                 self._prefix = "go tool "
                 break
 
-    def get_command(self, version):
+    def get_command(self, version, realisation):
         arch = os.uname()[-1]
         if arch == "x86_64":
             number = 6
@@ -155,7 +158,7 @@ class ErlangHacking(Hacking):
                 "start() ->\n"
                 "<cursor>\n")
 
-    def get_command(self, version):
+    def get_command(self, version, realisation):
         return ("erlc sandbox.erl && "
                 "erl -noshell -s sandbox start -s init stop")
 
@@ -171,7 +174,7 @@ class CHacking(Hacking):
                 "\treturn 0;\n"
                 "}\n")
 
-    def get_command(self, version):
+    def get_command(self, version, realisation):
         if version:
             standard = "-std=c" + version
         else:
@@ -193,7 +196,7 @@ class CCHacking(Hacking):
                 "\treturn 0;\n"
                 "}\n")
 
-    def get_command(self, version):
+    def get_command(self, version, realisation):
         if version:
             standard = "-std=c++" + version
         else:
@@ -299,7 +302,20 @@ class LispHacking(Hacking):
                 "\n    (:use :cl))\n"
                 "(in-package :lisp-hacking)\n\n"
                 "<cursor>\n")
-    command = "sbcl --script sandbox.lisp"
+
+    def get_command(self, version, realisation):
+        ex = "sbcl --script"
+        if realisation:
+            if realisation == "clisp":
+                ex = "clisp"
+            if realisation == "sbcl":
+                pass
+            else:
+                ex = realisation
+        return ("%s sandbox.lisp") % ex
+
+    def support_version(self):
+        return True
 
 LANGUAGES = {
     "c": CHacking,
@@ -335,9 +351,10 @@ def parse_cursor(template):
 
 class EventHandler(ProcessEvent):
 
-    def __init__(self, hacking, version):
+    def __init__(self, hacking, version, realisation):
         self.hacking = hacking
         self.version = version
+        self.realisation = realisation
         self.process = None
 
     def process_IN_MODIFY(self, event):
@@ -347,7 +364,7 @@ class EventHandler(ProcessEvent):
             def preexec_fn():
                 os.setpgid(0, 0)
             os.system("clear")
-            command = self.hacking.get_command(self.version)
+            command = self.hacking.get_command(self.version, self.realisation)
             self.process = subprocess.Popen(command, shell=True,
                                             preexec_fn=preexec_fn)
 
@@ -402,15 +419,15 @@ def editor(hacking):
     os.unlink(".hsandbox-editor-running")
 
 
-def runner(hacking, version):
+def runner(hacking, version, realisation):
     if pyinotify:
-        pyinotify_runner(hacking, version)
+        pyinotify_runner(hacking, version, realisation)
     else:
-        busy_runner(hacking, version)
+        busy_runner(hacking, version, realisation)
 
 
-def pyinotify_runner(hacking, version):
-    handler = EventHandler(hacking, version)
+def pyinotify_runner(hacking, version, realisation):
+    handler = EventHandler(hacking, version, realisation)
     mask = pyinotify.IN_MODIFY | pyinotify.IN_DELETE
     wm = pyinotify.WatchManager()
     notifier = pyinotify.Notifier(wm, handler)
@@ -418,8 +435,8 @@ def pyinotify_runner(hacking, version):
     notifier.loop()
 
 
-def busy_runner(hacking, version):
-    handler = EventHandler(hacking, version)
+def busy_runner(hacking, version, realisation):
+    handler = EventHandler(hacking, version, realisation)
     class Event(object):
         pass
     event = Event()
@@ -478,7 +495,7 @@ Options:
 
 
 def split_version(argument):
-    m = re.match("([a-z]+)(.*)", argument)
+    m = re.match("([a-z]+)([0-9](?:\.?[0-9]+)?)?(.*)?", argument)
     if not m or m.group(1) not in LANGUAGES:
         if argument.startswith("-"):
             sys.exit(USAGE)
@@ -493,7 +510,7 @@ def main(argv):
         pass
 
     if len(argv) > 1:
-        language, version = split_version(argv[1])
+        language, version, realisation = split_version(argv[1])
         hacking = LANGUAGES[language]()
         if version and not hacking.support_version():
             raise Error("Language %s doesn't support versioning" % language)
@@ -521,7 +538,7 @@ def main(argv):
     elif mode == "editor":
         editor(hacking)
     elif mode == "runner":
-        runner(hacking, version)
+        runner(hacking, version, realisation)
     else:
         raise RuntimeError("WTF? (%s)" % mode)
 
