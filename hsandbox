@@ -110,6 +110,8 @@ class Hacking(object):
         return cursor_line
 
     def get_command(self, version, realisation):
+        if None is version:
+            version = ""
         return self.command.replace("<version>", version)
 
     def support_version(self):
