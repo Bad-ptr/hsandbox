@@ -91,12 +91,12 @@ class Hacking(object):
                                        self.filename + ".template")]
         if self.use_old_sandbox:
             template_paths.insert(0, os.path.join(HSANDBOX_DIR, self.filename))
-        for template_path in template_paths:
-            template_path = os.path.expanduser(template_path)
-            if os.path.isfile(template_path):
-                with open(template_path) as file:
-                    template = file.read()
-                break
+            for template_path in template_paths:
+                template_path = os.path.expanduser(template_path)
+                if os.path.isfile(template_path):
+                    with open(template_path) as file:
+                        template = file.read()
+                    break
         else:
             template = self.template
         sandbox_content, cursor_line = parse_cursor(template)
